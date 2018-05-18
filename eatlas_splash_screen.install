@@ -1,0 +1,40 @@
+<?php
+
+include_once('eatlas_splash_screen.constants.inc');
+
+/**
+ * Implements: hook_schema().
+ * Define the DB tables that holds the list of Splash Screens.
+ * Schema API:
+ *   https://api.drupal.org/api/drupal/includes%21database%21schema.inc/group/schemaapi/7
+ * Data types:
+ *   https://www.drupal.org/docs/7/api/schema-api/data-types
+ */
+function eatlas_splash_screen_schema() {
+	$schema[EATLAS_SPLASH_SCREEN_DB_LIST_TABLE] = array(
+		'description' => 'The eAtlas Splash Screen configuration table.',
+		'fields' => array(
+			'spid' => array(
+				'description' => 'The primary identifier for a Splash Screen (sequential).',
+				'type' => 'serial',
+				'unsigned' => TRUE,
+				'not null' => TRUE
+			),
+			'bg_image' => array(
+				'description' => 'Splash Screen background image.',
+				'type' => 'text',
+				'size' => 'normal' // Up to 16 KB
+			),
+			'body' => array(
+				'description' => 'Splash Screen HTML body.',
+				'type' => 'text',
+				'size' => 'medium' // Up to 16 MB
+			)
+		),
+		'primary key' => array('spid')
+	);
+
+	return $schema;
+}
+
+?>

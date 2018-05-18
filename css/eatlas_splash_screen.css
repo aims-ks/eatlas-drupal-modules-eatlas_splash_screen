@@ -1,0 +1,90 @@
+/* NOTE: The splash screen block is shown by JQuery when needed */
+.block-eatlas-splash-screen {
+	display: none;
+}
+
+.block-eatlas-splash-screen .overlay {
+	position: fixed;
+	top: 0;
+	bottom: 0;
+	right: 0;
+	left: 0;
+	z-index:1000;
+
+	background-color: #000000;
+	opacity: 0.4;
+}
+
+/**
+ * Put the splash screen on top
+ * NOTE: Without this, the splash screen goes bellow the main page content
+ *   as soon as its opacity changes.
+ */
+.block-eatlas-splash-screen {
+	position: relative;
+	z-index: 1000;
+}
+
+.block-eatlas-splash-screen .splash-screen {
+	background-color: #666666;
+	position: fixed;
+	top: 10%;
+	bottom: 10%;
+	right: 10%;
+	left: 10%;
+	z-index: 1001; /* Render above the block-eatlas-splash-screen */
+
+	padding: 2em;
+	background-position: center center;
+	/*
+	 * background-size:
+	 *   cover: Fit the width or height and overflow the rest.
+	 *   contain: Make the image as large as possible without changing it's aspect ratio.
+	 */
+	background-size: cover;
+
+	box-shadow: 0 0 20px #000000;
+
+	flex: 1;
+	display: flex;
+	overflow: auto;
+}
+
+.block-eatlas-splash-screen .splash-screen-container {
+	width: 100%;
+	min-height: min-content;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.block-eatlas-splash-screen .splash-screen .splash-screen-body {
+	align-self: flex-start;
+}
+
+.block-eatlas-splash-screen .splash-screen .top-close-button {
+	background-image: url('../img/x.svg');
+	background-repeat: no-repeat;
+	background-position: right top;
+	background-size: contain;
+
+	width: 30px;
+	height: 30px;
+
+	margin-bottom: 2em;
+	align-self: flex-end;
+}
+
+.block-eatlas-splash-screen .splash-screen .bottom-close-button {
+	background-image: url('../img/arrow-down.svg');
+	background-repeat: no-repeat;
+	background-position: center bottom;
+	background-size: contain;
+
+	width: 100px;
+	height: 50px;
+
+	margin-top: 2em;
+	align-self: center;
+}

@@ -1,0 +1,325 @@
+<?php
+
+include_once('eatlas_splash_screen.constants.inc');
+
+
+/**
+ * Implements: hook_menu().
+ * Module configuration
+ */
+function eatlas_splash_screen_menu() {
+	$items = array();
+
+	// NOTE: admin/config/eatlas is defined in "eatlas_commons"
+
+	// Overview
+	// List all Splash Screen blocks
+	$items['admin/config/eatlas/eatlas_splash_screen'] = array(
+		'title' => 'Splash Screen blocks',
+		'description' => 'List all eAtlas Splash Screen blocks',
+		'page callback' => '_eatlas_splash_screen_overview',
+
+		'access callback' => '_eatlas_splash_screen_view_access',
+
+		'file' => 'eatlas_splash_screen.admin.inc'
+	);
+
+	// Add a Splash Screen block
+	$items['admin/config/eatlas/eatlas_splash_screen/add'] = array(
+		// NOTE: The title doesn't show on the page. It's a known bug related to MENU_LOCAL_ACTION:
+		//   https://www.drupal.org/node/891892
+		'title' => 'Add a Splash Screen block',
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('_eatlas_splash_screen_add_form'),
+
+		'access callback' => '_eatlas_splash_screen_admin_access',
+
+		'type' => MENU_LOCAL_ACTION,
+		'file' => 'eatlas_splash_screen.admin.inc'
+	);
+
+	// Delete a Splash Screen block
+	$items['admin/config/eatlas/eatlas_splash_screen/%/delete'] = array(
+		'title callback' => '_eatlas_splash_screen_delete_title',
+		'title arguments' => array(4),
+		'description' => 'Delete Splash Screen block',
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('_eatlas_splash_screen_form_confirm_delete', 4),
+
+		'access callback' => '_eatlas_splash_screen_admin_access',
+		'access arguments' => array(4),
+
+		'file' => 'eatlas_splash_screen.admin.inc'
+	);
+
+	return $items;
+}
+
+/**
+ * Implements hook_help().
+ */
+function eatlas_splash_screen_help($path, $arg) {
+	switch ($path) {
+		case 'admin/config/eatlas/eatlas_splash_screen':
+			$output = '<p>' . t('Splash Screens are used to show an image on top of a page. Each Splash Screen create a block that needs to be configure and associated to a URL.') . '</p>';
+			return $output;
+	}
+}
+
+/**
+ * Access rights
+ */
+
+/**
+ * Implements hook_permission()
+ * Define permissions used in this module.
+ * NOTE: Since this module create blocks, the Edit / Delete permissions
+ *   are managed by the block module.
+ */
+function eatlas_splash_screen_permission() {
+	return array(
+		'administer splash screen' => array(
+			'title' => t('Administer splash screen'),
+			'description' => t(
+				'Allow users to create new splash screens.<br/>' .
+				'NOTE: Edit / Delete permissions are managed by the block module.<br/>'
+			)
+		)
+	);
+}
+
+// View the list of Splash screen in the Admin interface
+function _eatlas_splash_screen_view_access($account = NULL) {
+	return user_access('administer splash screen', $account);
+}
+
+// Add new Splash screen from the Admin interface
+function _eatlas_splash_screen_admin_access($account = NULL) {
+	return user_access('administer splash screen', $account);
+}
+
+
+/**
+ * Blocks
+ */
+
+// hook_block_info
+function eatlas_splash_screen_block_info() {
+	$blocks = array();
+
+	$splash_screen_array = eatlas_splash_screen_load_all();
+	foreach ($splash_screen_array as $splash_screen) {
+		$block_id = EATLAS_SPLASH_SCREEN_BLOCK_PREFIX . $splash_screen->spid;
+		$block = block_load('eatlas_splash_screen', $block_id);
+
+		$blocks[$block_id] = array(
+			'info' => t('eAtlas Splash Screen - @title', array('@title' => ($block && property_exists($block, 'title')) ? $block->title : 'Untitled')),
+			// Disable cache, to allow the use of session variables
+			// https://api.drupal.org/api/drupal/includes%21common.inc/7.x
+			'cache' => DRUPAL_NO_CACHE,
+		);
+	}
+
+	return $blocks;
+}
+
+// hook_block_configure
+// https://api.drupal.org/api/drupal/developer%21topics%21forms_api_reference.html/7.x
+function eatlas_splash_screen_block_configure($delta = '') {
+	$form = array();
+
+	if (eatlas_commons_starts_with($delta, EATLAS_SPLASH_SCREEN_BLOCK_PREFIX)) {
+		$spid = substr($delta, strlen(EATLAS_SPLASH_SCREEN_BLOCK_PREFIX));
+		$splash_screen = eatlas_splash_screen_load($spid);
+		_eatlas_splash_screen_add_form_fields($form, $splash_screen);
+	}
+
+	return $form;
+}
+
+function _eatlas_splash_screen_add_form_fields(&$form, $splash_screen) {
+	$form['eatlas_splash_screen_bg_image'] = array(
+		'#type' => 'managed_file', 
+		'#title' => t('Splash screen background image'), 
+		'#description' => t('The image to display in the background of the splash screen. Use an high definition image.'), 
+		'#default_value' => ($splash_screen && property_exists($splash_screen, 'bg_image')) ? $splash_screen->bg_image : '',
+		'#upload_location' => 'public://eatlas_splash_screen/',
+		'#upload_validators' => array(
+			'file_validate_extensions' => array('gif png jpg jpeg'),
+		)
+	);
+
+	$form['eatlas_splash_screen_body'] = array(
+		'#type' => 'text_format', 
+		'#title' => t('Splash screen content'), 
+		'#size' => 60, 
+		'#description' => t('The text which will be displayed in the centre of the splash screen.'), 
+		'#default_value' => ($splash_screen && property_exists($splash_screen, 'body')) ? $splash_screen->body : ''
+	);
+}
+
+// hook_block_save
+// Save the value set by the user.
+// Fields defined in "hook_block_configure".
+function eatlas_splash_screen_block_save($delta = '', $edit = array()) {
+
+	if (eatlas_commons_starts_with($delta, EATLAS_SPLASH_SCREEN_BLOCK_PREFIX)) {
+		$spid = substr($delta, strlen(EATLAS_SPLASH_SCREEN_BLOCK_PREFIX));
+		$splash_screen = _get_edited_splash_screen($spid, $edit);
+		eatlas_splash_screen_save($splash_screen);
+	}
+}
+
+// hook_block_view
+function eatlas_splash_screen_block_view($delta = '') {
+	$block = array();
+
+	if (eatlas_commons_starts_with($delta, EATLAS_SPLASH_SCREEN_BLOCK_PREFIX)) {
+		$spid = substr($delta, strlen(EATLAS_SPLASH_SCREEN_BLOCK_PREFIX));
+		$splash_screen = eatlas_splash_screen_load($spid);
+
+		if ($splash_screen) {
+			$session_var_id = 'eatlas_splash_screen_' . $spid;
+
+			$current_path = current_path();
+
+			$eatlas_splash_screen_bg_image = $splash_screen->bg_image;
+			$eatlas_splash_screen_body = $splash_screen->body;
+
+			$image_file_url = NULL;
+			if ($eatlas_splash_screen_bg_image) {
+				$image_file = file_load($eatlas_splash_screen_bg_image);
+				if ($image_file) {
+					$image_file_uri = $image_file->uri;
+					if ($image_file_uri) {
+						$image_file_url = file_create_url($image_file_uri);
+					}
+				}
+			}
+
+			// NOTE: The block is hidden in the CSS,
+			//   and shown by JQuery when necessary.
+			$block['content'] =
+				'<div class="overlay"></div>' .
+				($image_file_url ?
+					'<div class="splash-screen" style="background-image:url(\'' . $image_file_url . '\')">' :
+					'<div class="splash-screen">'
+				) .
+					'<div class="splash-screen-container">' .
+						'<a href="#" class="close-button top-close-button"></a>' .
+						'<div class="splash-screen-body">' .
+							$eatlas_splash_screen_body .
+						'</div>' .
+						'<a href="#" class="close-button bottom-close-button"></a>' .
+					'</div>' .
+				'</div>';
+		}
+	}
+
+	return $block;
+}
+
+/**
+ * Implement hook_preprocess_block
+ * Prevent Drupal from rendering the block title.
+ */
+function eatlas_splash_screen_preprocess_block(&$variables, $hook) {
+	if ($variables['block']->module == 'eatlas_splash_screen') {
+		$variables['elements']['#block']->subject = NULL;
+	}
+}
+
+function _get_edited_splash_screen($spid, $values = array()) {
+	$splash_screen = NULL;
+	if ($spid !== NULL) {
+		$splash_screen = eatlas_splash_screen_load($spid);
+	}
+
+	if ($splash_screen === NULL) {
+		$splash_screen = new stdClass();
+	}
+
+	$splash_screen->bg_image = $values['eatlas_splash_screen_bg_image'];
+	$splash_screen->body = $values['eatlas_splash_screen_body']['value'];
+
+	return $splash_screen;
+}
+
+/**
+ * Database functions
+ */
+
+function eatlas_splash_screen_load_all() {
+	// DB Select using the Drupal objects
+	//   https://api.drupal.org/api/drupal/includes!database!database.inc/function/db_select/7
+	$query = db_select(EATLAS_SPLASH_SCREEN_DB_LIST_TABLE, 'sp')
+		->fields('sp');
+	$result = $query->execute();
+
+	$blocks = array();
+	while($data = $result->fetch()) {
+		$blocks[] = $data;
+	}
+
+	return $blocks;
+}
+
+/**
+ * Follow the convention of node_load.
+ * $spid: The Splash Screen ID.
+ *   https://api.drupal.org/api/drupal/modules%21node%21node.module/function/node_load/7
+ */
+function eatlas_splash_screen_load($spid) {
+	if ($spid === NULL) {
+		return new stdClass();
+	}
+
+	// DB Select using the Drupal objects
+	//   https://api.drupal.org/api/drupal/includes!database!database.inc/function/db_select/7
+	$query = db_select(EATLAS_SPLASH_SCREEN_DB_LIST_TABLE, 'sp')
+		->fields('sp')
+		->condition('sp.spid', $spid, '=');
+	$result = $query->execute();
+
+	$data = $result->fetch();
+
+	if (!$data) {
+		return new stdClass();
+	}
+
+	return $data;
+}
+
+/**
+ * Follow the convention of node_save.
+ * $splash_screen_block: The Splash Screen block object to be saved.
+ *   https://api.drupal.org/api/drupal/modules%21node%21node.module/function/node_save/7
+ */
+function eatlas_splash_screen_save($splash_screen_block) {
+	// Transform the object into an Array to be sent to the DB.
+	$splash_screen_block_fields = (array)$splash_screen_block;
+
+	$spid = isset($splash_screen_block_fields['spid']) ? $splash_screen_block_fields['spid'] : NULL;
+
+	if ($spid === NULL) {
+		// Insert
+		//   https://api.drupal.org/api/drupal/includes%21database%21query.inc/function/InsertQuery%3A%3Aexecute/7
+		$spid = db_insert(EATLAS_SPLASH_SCREEN_DB_LIST_TABLE)->fields($splash_screen_block_fields)->execute();
+	} else {
+		// Update
+
+		// SPID is used in the "WHERE" clause, not in the values.
+		unset($splash_screen_block_fields['spid']);
+		db_update(EATLAS_SPLASH_SCREEN_DB_LIST_TABLE)->fields($splash_screen_block_fields)->condition('spid', $spid)->execute();
+	}
+
+	//watchdog("eatlas_splash_screen_block_save", "splash_screen_block: <pre>" . print_r($splash_screen_block, TRUE) . "</pre>");
+	return $spid;
+}
+
+// Event listener callback function
+function eatlas_splash_screen_delete($spid) {
+	db_delete(EATLAS_SPLASH_SCREEN_DB_LIST_TABLE)->condition('spid', $spid)->execute();
+}
+
+?>

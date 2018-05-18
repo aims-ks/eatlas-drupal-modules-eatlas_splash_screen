@@ -1,0 +1,21 @@
+; $Id$
+name = eAtlas Splash Screen
+description = Display a Splash Screen on top of a page. This module create blocks. You need to edit the block body to put what you want to be display in the page, then move it to the content part of the site, and set it to only be display on a given page.
+core = 7.x
+
+files[] = eatlas_splash_screen.module
+
+stylesheets[all][] = css/eatlas_splash_screen.css
+scripts[] = js/eatlas_splash_screen.js
+
+package = eAtlas
+
+configure = admin/config/eatlas/eatlas_splash_screen
+
+dependencies[] = eatlas_commons
+
+; Attributes used by the update module.
+; There fields needs to be removed if the module is migrated to Drupal.org
+project status url = "http://drupal.eatlas.org.au/modules/eatlas"
+version = "7.x-0.6"
+project = "eatlas_splash_screen"
