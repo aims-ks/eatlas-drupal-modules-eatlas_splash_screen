@@ -187,12 +187,19 @@ function eatlas_splash_screen_block_view($delta = '') {
 			$eatlas_splash_screen_body = $splash_screen->body;
 
 			$image_file_url = NULL;
+			$image_file_attributions = NULL;
 			if ($eatlas_splash_screen_bg_image) {
 				$image_file = file_load($eatlas_splash_screen_bg_image);
 				if ($image_file) {
 					$image_file_uri = $image_file->uri;
 					if ($image_file_uri) {
 						$image_file_url = file_create_url($image_file_uri);
+					}
+
+					if (module_exists('eatlas_media_frame_filter')) {
+						$fileWrapper = MediaFrameAbstractFileWrapper::getWrapper(
+							array('#file' => $image_file), NULL);
+						$image_file_attributions = _eatlas_media_frame_render_license($fileWrapper, 'small');
 					}
 				}
 			}
@@ -211,6 +218,9 @@ function eatlas_splash_screen_block_view($delta = '') {
 							$eatlas_splash_screen_body .
 						'</div>' .
 						'<a href="#" class="close-button bottom-close-button"></a>' .
+					'</div>' .
+					'<div class="splash-screen-attributions">' .
+						($image_file_attributions ? $image_file_attributions : '') .
 					'</div>' .
 				'</div>';
 		}

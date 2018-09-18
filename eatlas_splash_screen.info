@@ -17,5 +17,5 @@ dependencies[] = eatlas_commons
 ; Attributes used by the update module.
 ; There fields needs to be removed if the module is migrated to Drupal.org
 project status url = "http://drupal.eatlas.org.au/modules/eatlas"
-version = "7.x-0.7"
+version = "7.x-0.8"
 project = "eatlas_splash_screen"
